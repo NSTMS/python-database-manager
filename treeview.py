@@ -1,6 +1,6 @@
 from tkinter import *
 from tkinter import ttk
-
+print("siema")
 root = Tk()
 root.geometry("400x300")
 
