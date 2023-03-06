@@ -1,99 +1,83 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import math
-import datetime
-# Utworzenie listy z danymi o ilości wody potrzebnej na poszczególne drzewa
-water_usage = {'sosna': 2, 'brzoza': 1.5, 'tui': 2.2, 'dąb': 1}
-
-# Utworzenie DataFrame z danymi o liczbie poszczególnych drzew
-trees = pd.DataFrame({'sosna': [25], 'brzoza': [15], 'tui': [50], 'dąb': [10]})
-
-# Obliczenie całkowitej liczby drzew
-total_trees = trees.sum().sum()
-
-# Inicjalizacja wartości początkowej zbiornika wodnego
-tank_capacity = 1000
-
-# Utworzenie listy do przechowywania codziennej liczby zużytych litrów wody
-daily_water_usage = []
-
-# Przeprowadzenie symulacji od 1 marca 2020 r. do 30 września 2020 r.
-current_date = pd.to_datetime('2020-03-01')
-end_date = pd.to_datetime('2020-09-30')
-while current_date <= end_date:
-
-    # Dodanie wody w soboty
-    if current_date.weekday() == 5:
-        tank_capacity = 1000
-
-    # Wyliczenie całkowitej liczby zużytych litrów wody w ciągu dnia
-    daily_usage = 0
-    for tree, usage in water_usage.items():
-        daily_usage += trees[tree].iloc[0] * usage
-    daily_water_usage.append(daily_usage)
-
-    # Ubytek wody ze zbiornika
-    tank_capacity = math.floor(tank_capacity - daily_usage + (0.99 * tank_capacity))
-
-    # Dolewanie wody, jeśli jest jej za mało
-    if tank_capacity < 0:
-        tank_capacity += 200
-
-    current_date += pd.Timedelta(days=1)
-
-# Obliczenie łącznej ilości wody wyparowanej
-total_evaporation = 1000 - tank_capacity
-
-# Wyświetlenie wyników
-print('Zadanie 16.1')
-print(f'Łączna ilość wyparowanej wody: {abs(total_evaporation)} litrów')
-
-print('Zadanie 16.2')
-num_refills = sum([1 for usage in daily_water_usage if usage > tank_capacity])
-print(f'Liczba uzupełnień zbiornika: {num_refills}')
-
-print('Zadanie 16.3')
-max_pines = math.floor(tank_capacity / water_usage['sosna'])
-print(f'Maksymalna liczba sosen, które można posadzić: {max_pines}')
-
-print('Zadanie 16.4')
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog
+import mysql.connector
 
 
-# dane
-x = [datetime.date(2020, 3, 1) + datetime.timedelta(days=i) for i in range(214)]
-y = [1000] * 214
+class DatabaseAdmin(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("database_my_admin")
+        self.app_width = 800
+        self.app_height = 600
+        self.screen_width = self.winfo_screenwidth()
+        self.screen_height = self.winfo_screenheight()
+        self.x = (self.screen_width / 2) - (self.app_width / 2)
+        self.y = (self.screen_height / 2) - (self.app_height / 2)
+        self.geometry(f'{self.app_width}x{self.app_height}+{int(self.x)}+{int(self.y)}')
 
-sosny = 25
-brzozy = 15
-tui = 50
-duby = 10
+        self.conn = None
+        self.cursor = None
+        self.db_list = []
+        self.table_list = []
+        self.headings = []
+        self.current_table = ""
+        self.current_db = ""
 
-woda_sosna = 2
-woda_brzoza = 1.5
-woda_tuja = 2.2
-woda_dab = 1
+        self.create_widgets()
+        self.connect_to_mysql()
 
-woda_zbiornik = 1000
-woda_dolewanie = 200
+        self.mainloop()
 
-# obliczenia
-woda_podlewanie = sosny * woda_sosna + brzozy * woda_brzoza + tui * woda_tuja + duby * woda_dab
-dni = (datetime.date(2020, 9, 30) - datetime.date(2020, 3, 1)).days
+    def create_widgets(self):
+        self.combo_box_db = ttk.Combobox(self, values=self.db_list)
+        self.combo_box_db.pack()
+        self.combo_box_db.bind("<<ComboboxSelected>>", self.show_tables)
 
-for i in range(dni):
-    if i % 7 == 6:  # sobota
-        woda_zbiornik += 1000
-    woda_zbiornik -= woda_podlewanie
-    woda_zbiornik = int(woda_zbiornik * 0.99)
-    if woda_zbiornik < woda_podlewanie:
-        woda_zbiornik += woda_dolewanie
-    y[i] = woda_zbiornik
+        self.add_db_btn = ttk.Button(self, text="Add database", command=self.add_database)
+        self.add_db_btn.pack()
 
-# wykres
-plt.plot(x, y)
-plt.title('Stan wody w zbiorniku')
-plt.xlabel('Data')
-plt.ylabel('Stan wody [l]')
-plt.show()
+        self.database_entry = ttk.Entry(self)
+        self.database_entry.pack()
 
-plt.xlabel
+        self.combo_box_tables = ttk.Combobox(self, values=self.table_list)
+        self.combo_box_tables.pack()
+
+        self.add_table_btn = ttk.Button(self, text="Add table", command=self.add_table)
+        self.add_table_btn.pack()
+
+        self.delete_table_btn = ttk.Button(self, text="Delete table", command=self.delete_table)
+        self.delete_table_btn.pack()
+
+        self.tree = ttk.Treeview(self)
+        self.tree.pack(padx=20, pady=20)
+
+    def connect_to_mysql(self):
+        try:
+            self.conn = mysql.connector.connect(
+                host='localhost',
+                user='root',
+                password='',
+                database=''
+            )
+            self.cursor = self.conn.cursor()
+            self.cursor.execute('SHOW DATABASES')
+            self.db_list = [db[0] for db in self.cursor]
+            self.combo_box_db["values"] = self.db_list
+            self.current_db = self.db_list[0] if self.db_list else ""
+        except mysql.connector.Error as error:
+            messagebox.showerror("Error", f"Failed to connect to the MySQL server: {error}")
+
+    def add_database(self):
+        database_name = self.database_entry.get().strip()
+        if database_name:
+            try:
+                self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+                self.conn.commit()
+                self.db_list.append(database_name)
+                self.combo_box_db["values"] = self.db_list
+                self.current_db = database_name
+                self.database_entry.delete(0, tk.END)
+            except mysql.connector.Error as error:
+                messagebox.showerror("Error", f"Failed to add database: {error}")
+        else:
+            messagebox.showwarning("Warning", "Database name cannot be empty")

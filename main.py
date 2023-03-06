@@ -2,8 +2,6 @@ from tkinter import *
 from tkinter import ttk
 import mysql.connector
 import re
-import tkinter as tk
-from tkinter import ttk
 from tkinter.messagebox import askyesno
 from tkinter.simpledialog import askstring, askinteger
 from tkinter.messagebox import showinfo
@@ -23,7 +21,6 @@ conn = mysql.connector.connect(
     user='root',
     passwd='',
     database=''
-
 )
 cursor = conn.cursor()
 cursor.execute('SHOW DATABASES')
@@ -33,6 +30,7 @@ tableList = []
 headings = []
 currentTable = ""
 currentDb = ""
+
 for dataBases in cursor:
     dbList.append(dataBases)
 
@@ -40,7 +38,7 @@ default_value = StringVar(value=dbList[0][0])
 combo_box = ttk.Combobox(root, values=dbList, textvariable=default_value)
 if len(dbList) != 0:
     currentDb = dbList[0][0]
-    print(currentDb)
+Label(text="DOSTĘPNE BAZY DANYCH: ").pack()
 combo_box.pack()
 
 addDbBtn = Button(root, text="Add database", command=lambda: addDb())
@@ -57,7 +55,6 @@ else:
 
 combo_box_tables = ttk.Combobox(root, textvariable=default_table)
 combo_box_tables.pack()
-
 addTableToDb = Button(root, text="Add table", command=lambda: addTable(combo_box.get()))
 deleteTableFromDb = Button(root, text="Delete table", command=lambda: removeTable(combo_box.get()))
 addTableToDb.pack()
@@ -65,9 +62,7 @@ deleteTableFromDb.pack()
 tree = ttk.Treeview(root)
 window = None
 windows = []
-tree.pack(padx=20)
-
-
+tree.pack(padx=20,pady=20)
 def removeTable(baseName):
     global combo_box_tables
     table = combo_box_tables.get()
@@ -80,6 +75,54 @@ def removeTable(baseName):
         conn.commit()
         return showSelectedDataBase(baseName)
 def addTable(baseName):
+    def sumbitAddTable(name):
+
+        counter = int(addingTableView.nametowidget("quantity").get())
+        for i in range(counter):
+            comboboxValue = addingTableView.nametowidget("column_type_"+str(i)).get()
+            inputValue = addingTableView.nametowidget("entry_"+str(i)).get()
+            valid_types = ['bigint', 'binary', 'bool','boolean','bit', 'char', 'date', 'datetime', 'decimal', 'double', 'enum', 'float',
+                           'geometry', 'geometrycollection', 'int', 'integer', 'json', 'linestring', 'longblob',
+                           'longtext', 'mediumblob', 'mediumint', 'mediumtext', 'multilinestring', 'multipoint',
+                           'multipolygon', 'numeric', 'point', 'polygon', 'real', 'set', 'smallint', 'text', 'time',
+                           'timestamp', 'tinyblob', 'tinyint', 'tinytext', 'varbinary', 'varchar', 'year']
+
+            if comboboxValue == ""  or inputValue == "" or inputValue == "0"  or comboboxValue.lower() not in valid_types or not inputValue.isalnum():
+                return print("invalid")
+            else:
+                global cursor
+                global conn
+                print(baseName)
+                cursor.execute(f"USE {baseName}")
+                cursor.execute(f"CREATE TABLE IF NOT EXISTS `{name}` (Id int PRIMARY KEY NOT NULL AUTO_INCREMENT)")
+                conn.commit()
+                cursor.execute(f"ALTER TABLE {name} ADD COLUMN IF NOT EXISTS `{inputValue}` {comboboxValue}")
+                conn.commit()
+                showSelectedDataBase(baseName)
+        return closeWindow(addingTableView)
+    def validate():
+        if validateEntries(addingTableView.nametowidget("name").get(), addingTableView.nametowidget("quantity").get()):
+            label["text"] = ""
+            tablename = str(addingTableView.nametowidget("name").get())
+            label.grid(row=3, column=0, columnspan=2)
+            counter = int(addingTableView.nametowidget("quantity").get())
+            valid_types = ['bigint', 'binary', 'bool', 'boolean', 'bit', 'char', 'date', 'datetime', 'decimal',
+                           'double', 'enum', 'float',
+                           'geometry', 'geometrycollection', 'int', 'integer', 'json', 'linestring', 'longblob',
+                           'longtext', 'mediumblob', 'mediumint', 'mediumtext', 'multilinestring', 'multipoint',
+                           'multipolygon', 'numeric', 'point', 'polygon', 'real', 'set', 'smallint', 'text', 'time',
+                           'timestamp', 'tinyblob', 'tinyint', 'tinytext', 'varbinary', 'varchar', 'year']
+            for i in range(counter):
+                Label(addingTableView, text="Nazwa: ").grid(row=3+i, column=0)
+                Entry(addingTableView, name="entry_"+str(i)).grid(row=3+i, column=1)
+                combobox_value = StringVar(value=valid_types[0])
+                ttk.Combobox(addingTableView,values=valid_types ,textvariable=combobox_value,name="column_type_"+str(i)).grid(row=3+i, column=2)
+            Button(addingTableView, text="submit", command=lambda: sumbitAddTable(tablename)).grid(row=counter+4, column=0)
+        else:
+            label["text"] = "invalid input"
+            label.grid(row=3, column=0, columnspan=2)
+            return
+
     addingTableView = Toplevel(window, padx=20)
     addingTableView.title("add new Table")
 
@@ -91,65 +134,19 @@ def addTable(baseName):
 
     Button(addingTableView, text="add", command=lambda: validate()).grid(row=2, column=0)
     Button(addingTableView, text="close", command=lambda: closeWindow(addingTableView)).grid(row=2, column=1)
-
-    def validate():
-        if validateEntries(addingTableView.nametowidget("name").get(), addingTableView.nametowidget("quantity").get()):
-            label["text"] = ""
-            tablename = str(addingTableView.nametowidget("name").get())
-            label.grid(row=3, column=0, columnspan=2)
-            counter = int(addingTableView.nametowidget("quantity").get())
-            types = ["VARCHAR(255)","TEXT","INT","FLOAT","BOOL"]
-            for i in range(counter):
-                Label(addingTableView, text="Nazwa: ").grid(row=3+i, column=0)
-                Entry(addingTableView, name="entry_"+str(i)).grid(row=3+i, column=1)
-                combobox_value = StringVar(value=types[0])
-                ttk.Combobox(addingTableView,values=types ,textvariable=combobox_value,name="column_type_"+str(i)).grid(row=3+i, column=2)
-
-            Button(addingTableView, text="submit", command=lambda: sumbitAddTable(tablename)).grid(row=counter+4, column=0)
-
-        else:
-            label["text"] = "invalid input"
-            label.grid(row=3, column=0, columnspan=2)
-            return
-
-    def sumbitAddTable(name):
-        counter = int(addingTableView.nametowidget("quantity").get())
-        for i in range(counter):
-            comboboxValue = addingTableView.nametowidget("column_type_"+str(i)).get()
-            inputValue = addingTableView.nametowidget("entry_"+str(i)).get()
-            valid_types = ['bigint', 'binary', 'bit', 'char', 'date', 'datetime', 'decimal', 'double', 'enum', 'float',
-                           'geometry', 'geometrycollection', 'int', 'integer', 'json', 'linestring', 'longblob',
-                           'longtext', 'mediumblob', 'mediumint', 'mediumtext', 'multilinestring', 'multipoint',
-                           'multipolygon', 'numeric', 'point', 'polygon', 'real', 'set', 'smallint', 'text', 'time',
-                           'timestamp', 'tinyblob', 'tinyint', 'tinytext', 'varbinary', 'varchar', 'year']
-
-            if comboboxValue == "" or comboboxValue not in valid_types \
-                    or inputValue == "" or inputValue == "0" or not inputValue.isalnum():
-                print(inputValue, comboboxValue, inputValue.isalnum(),comboboxValue not in valid_types)
-                print("invalid")
-                return
-            else:
-                global cursor
-                global conn
-                print(baseName)
-                cursor.execute(f"USE {baseName}")
-                cursor.execute(f"CREATE TABLE IF NOT EXISTS `{name}` (Id int PRIMARY KEY NOT NULL AUTO_INCREMENT)")
-                conn.commit()
-                cursor.execute(f"ALTER TABLE {name} ADD COLUMN IF NOT EXISTS {inputValue} {comboboxValue}")
-                conn.commit()
-                showSelectedDataBase(baseName)
-        return closeWindow(addingTableView)
     addingTableView.mainloop()
 
 
+
 def validateEntries(name, quantity):
-    if quantity.isnumeric():
-        for i in name:
-            if not i.isalnum() or i == "":
-                return False
-            return True
-    else:
+    if not name.isidentifier():
         return False
+    try:
+        int(quantity)
+    except ValueError:
+        return False
+    return True
+
 
 def addDb():
     global cursor
@@ -172,12 +169,19 @@ def addDb():
 
     return
 
-
 def showSelectedDataBase(dbName):
+    print(dbName)
     cursor.execute(f'USE {dbName}')
-    cursor.execute('SHOW TABLES')
-
+    global default_value
+    global combo_box
+    cursor.execute("SHOW DATABASES")
+    for dataBases in cursor:
+        dbList.append(dataBases)
+    combo_box['values'] = []
     combo_box['values'] = dbList
+    default_value.set(dbName)
+
+    cursor.execute('SHOW TABLES')
     tree.pack_forget()
     tableList.clear()
 
@@ -186,11 +190,50 @@ def showSelectedDataBase(dbName):
     combo_box_tables['values'] = tableList
 
     if len(tableList) != 0:
-        tree.pack()
+        tree.pack(padx=20,pady=20)
         combo_box_tables.set(tableList[0])
         global currentTable
         currentTable = tableList[0]
         showSelectedTableData(tableList[0])
+        addRecordBtn = Button(text="add record", command=lambda: addRecordToTable(combo_box_tables.get()))
+
+        addRecordBtn.pack()
+        if not addRecordBtn:
+            addRecordBtn.pack()
+
+    else:
+        if addRecordBtn:
+            addRecordBtn.pack_forget()
+        combo_box_tables.set("")
+
+    def addRecordToTable(tableName):
+        window = Toplevel(root)
+        window.title(f"add record to {tableName}")
+        global headings
+        counter = len(headings)
+        for i,heading in enumerate(headings):
+            Label(window, text=heading).grid(row=i, column=0)
+            textBox = Entry(window, name=heading.lower())
+            textBox.grid(row=i, column=1)
+
+        close = Button(window, text="Sumbit", command=lambda: submitAddRecord())
+        close.grid(row=counter + 1, column=0)
+        close = Button(window, text="Close", command=lambda: closeWindow(window))
+        close.grid(row=counter+1, column=1)
+
+
+        def submitAddRecord():
+            cursor.execute(f'USE {dbName}')
+            cursor.execute(f"SELECT * FROM {tableName}")
+            set = ""
+            for i, heading in enumerate(headings):
+                set += window.nametowidget(heading.lower()).get() + "',"
+            if (set.endswith(",")):
+                set = set[:-1]
+            cursor.execute(
+                f'''INSERT INTO {tableName} ({','.join(headings)}) VALUES {set}''')
+            conn.commit()
+            closeWindow(window)
 
 
 def showSelectedTableData(tableName):
@@ -213,6 +256,7 @@ def showSelectedTableData(tableName):
         tree.insert('', END, values=res)
 
 
+
 def item_selected(event):
     global headings
     global currentTable
@@ -227,8 +271,6 @@ def item_selected(event):
 
     window = Toplevel(root)
     window.title(f"Details for {currentTable}")
-    global windows
-    windows.append(window)
     if len(tree.selection()) > 0:
         item = tree.item(tree.selection()[0])
         record = item['values']
@@ -255,9 +297,7 @@ def item_selected(event):
 
 
 def closeWindow(window):
-    if window.winfo_exists() and window.winfo_name():
-        window_to_close = window
-        window_to_close.destroy()
+    window.destroy()
 
 
 def updateSelectedElement(database, table, headings, record):
