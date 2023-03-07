@@ -202,8 +202,6 @@ def showSelectedDataBase(dbName):
             addRecordBtn.pack()
 
     else:
-        if addRecordBtn:
-            addRecordBtn.pack_forget()
         combo_box_tables.set("")
 
     def addRecordToTable(tableName):
